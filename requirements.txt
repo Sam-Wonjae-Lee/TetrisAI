@@ -1,0 +1,6 @@
+gym==0.21.0     # Version 0.25 and above may have issues with booting the game
+importlib-metadata<5.0      # Need to downgrade or will cause issues (AttributeError: 'EntryPoints')
+gym-retro
+neat-python
+opencv-python
+numpy
