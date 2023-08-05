@@ -93,77 +93,108 @@ def game_over(field) -> bool:
     return any(cell == 1 for cell in field[0])
 
 
-# def main():
-#     env = retro.make('Tetris-Nes', state='StartLv0')
-#     field_start_addr = 0x0400
-#     num_rows = 20
-#     num_cols = 10
+# env = retro.make('Tetris-Nes', state='StartLv0')
+# field_start_addr = 0x0400
+# num_rows = 20
+# num_cols = 10
 #
-#     obs = env.reset()
-#     gameover = False
+# imgarray = []
 #
-#     while not gameover:
-#         field = read_field(env, field_start_addr, num_rows, num_cols)
-#         print('* ' * (len(field[0])))
-#         for row in field:
-#             print(' '.join(map(str, row)))
-#         print('* ' * (len(field[0])))
 #
-#         # column_heights = calculate_column_heights(field)
-#         # print("Column Heights:", column_heights)
-#         # bumpiness = calculate_bumpiness(column_heights)
-#         # print("Bumpiness:", bumpiness)
-#         # column_holes = calculate_holes(field)
-#         # print("Column Holes:", column_holes)
-#         print("Gameover:", game_over(field))
-#
+# def eval_genomes(genomes, config):
+#     for genome_id, genome in genomes:
+#         obs = env.reset()
 #         action = env.action_space.sample()
-#         obs, _, done, _ = env.step(action)
-#         env.render()
+#         inx, iny, inc = env.observation_space.shape
+#         inx = int(inx / 8)
+#         iny = int(iny / 8)
+#         net = neat.nn.recurrent.RecurrentNetwork.create(genome, config)
+#         current_max_fitness = 0
+#         fitness_current = 0
+#         frame = 0
+#         gameover = False
 #
-#         if game_over(field):
-#             gameover = True
+#         while not gameover:
+#             # Uncomment to see NES Tetris running in emulator
+#             # env.render()
+#             frame += 1
 #
-#     env.close()
+#             obs = cv2.resize(obs, (inx, iny))
+#             obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
+#             obs = np.reshape(obs, (inx, iny))
+#             imgarray = np.ndarray.flatten(obs)
+#
+#             nnOutput = net.activate(imgarray)
+#             obs, rew, done, info = env.step(nnOutput)
+#
+#             cleared_lines = info['cleared_lines']
+#             # score = info['score']
+#             field = read_field(env, field_start_addr, num_rows, num_cols)
+#             if game_over(field):
+#                 gameover = True
+#
+#             if gameover:
+#                 print('* ' * (len(field[0])))
+#                 for row in field:
+#                     print(' '.join(map(str, row)))
+#                 print('* ' * (len(field[0])))
+#                 column_heights = calculate_column_heights(field)
+#                 aggregate_height = sum(column_heights)
+#                 print("Column Heights:", column_heights)
+#                 print("Cleared Lines:", cleared_lines)
+#                 bumpiness = calculate_bumpiness(column_heights)
+#                 print("Bumpiness:", bumpiness)
+#                 column_holes = calculate_holes(field)
+#                 print("Column Holes:", column_holes)
+#                 print("Gameover:", game_over(field))
+#
+#                 fitness_current = (-0.860 * aggregate_height) + (0.433 * cleared_lines) + \
+#                                   (-0.824 * column_holes) + (-0.343 * bumpiness)
+#
+#                 if fitness_current > current_max_fitness:
+#                     current_max_fitness = fitness_current
+#                 print(genome_id, fitness_current)
+#
+#             genome.fitness = fitness_current
 
 
-env = retro.make('Tetris-Nes', state='StartLv0')
-field_start_addr = 0x0400
-num_rows = 20
-num_cols = 10
+class Worker(object):
+    def __init__(self, genome, config):
+        self.genome = genome
+        self.config = config
 
-imgarray = []
-
-
-def eval_genomes(genomes, config):
-    for genome_id, genome in genomes:
-        obs = env.reset()
-        action = env.action_space.sample()
-        inx, iny, inc = env.observation_space.shape
+    def work(self):
+        self.env = retro.make('Tetris-Nes', state='StartLv0')
+        obs = self.env.reset()
+        action = self.env.action_space.sample()
+        inx, iny, inc = self.env.observation_space.shape
         inx = int(inx / 8)
         iny = int(iny / 8)
-        net = neat.nn.recurrent.RecurrentNetwork.create(genome, config)
-        current_max_fitness = 0
-        fitness_current = 0
+        net = neat.nn.recurrent.RecurrentNetwork.create(self.genome, self.config)
+        fitness = 0
         frame = 0
         gameover = False
 
+        field_start_addr = 0x0400
+        num_rows = 20
+        num_cols = 10
+
         while not gameover:
             # Uncomment to see NES Tetris running in emulator
-            # env.render()
+            self.env.render()
             frame += 1
-
             obs = cv2.resize(obs, (inx, iny))
             obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
             obs = np.reshape(obs, (inx, iny))
             imgarray = np.ndarray.flatten(obs)
+            imgarray = np.interp(imgarray, (0, 254), (-1, +1))
+            actions = net.activate(imgarray)
 
-            nnOutput = net.activate(imgarray)
-            obs, rew, done, info = env.step(nnOutput)
+            obs, rew, done, info = self.env.step(actions)
 
             cleared_lines = info['cleared_lines']
-            # score = info['score']
-            field = read_field(env, field_start_addr, num_rows, num_cols)
+            field = read_field(self.env, field_start_addr, num_rows, num_cols)
+
             if game_over(field):
                 gameover = True
 
@@ -182,14 +213,16 @@ def eval_genomes(genomes, config):
                 print("Column Holes:", column_holes)
                 print("Gameover:", game_over(field))
 
-                fitness_current = (-0.860 * aggregate_height) + (0.433 * cleared_lines) + \
-                                  (-0.824 * column_holes) + (-0.343 * bumpiness)
+                fitness += (-0.860 * aggregate_height) + (0.433 * cleared_lines) + \
+                           (-0.824 * column_holes) + (-0.343 * bumpiness)
 
-                if fitness_current > current_max_fitness:
-                    current_max_fitness = fitness_current
-                print(genome_id, fitness_current)
+        print(fitness)
+        return fitness
 
-            genome.fitness = fitness_current
+
+def eval_genomes(genome, config):
+    worky = Worker(genome, config)
+    return worky.work()
 
 
 config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -201,6 +234,9 @@ stats = neat.StatisticsReporter()
 p.add_reporter(stats)
 p.add_reporter(neat.Checkpointer(10))
 
-winner = p.run(eval_genomes)
-with open('winner.pkl', 'wb') as output:
-    pickle.dump(winner, output, 1)
+
+if __name__ == '__main__':
+    pe = neat.ParallelEvaluator(10, eval_genomes)
+    winner = p.run(pe.evaluate, 10)
+    with open('winner.pkl', 'wb') as output:
+        pickle.dump(winner, output, 1)
