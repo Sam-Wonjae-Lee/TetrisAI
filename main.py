@@ -165,11 +165,12 @@ class Worker(object):
 
     def work(self):
         self.env = retro.make('Tetris-Nes', state='StartLv0')
-        obs = self.env.reset()
-        action = self.env.action_space.sample()
-        inx, iny, inc = self.env.observation_space.shape
-        inx = int(inx / 8)
-        iny = int(iny / 8)
+        self.env.reset()
+        obs, _, _, _ = self.env.step(self.env.action_space.sample())
+
+        inx = int(obs.shape[0] / 8)
+        iny = int(obs.shape[1] / 8)
+
         net = neat.nn.recurrent.RecurrentNetwork.create(self.genome, self.config)
         fitness = 0
         frame = 0
@@ -181,11 +182,12 @@ class Worker(object):
 
         while not gameover:
             # Uncomment to see NES Tetris running in emulator
-            self.env.render()
+            # self.env.render()
             frame += 1
             obs = cv2.resize(obs, (inx, iny))
             obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
             obs = np.reshape(obs, (inx, iny))
+
             imgarray = np.ndarray.flatten(obs)
             imgarray = np.interp(imgarray, (0, 254), (-1, +1))
             actions = net.activate(imgarray)
@@ -237,6 +239,6 @@ p.add_reporter(neat.Checkpointer(10))
 
 if __name__ == '__main__':
     pe = neat.ParallelEvaluator(10, eval_genomes)
-    winner = p.run(pe.evaluate, 10)
+    winner = p.run(pe.evaluate)
     with open('winner.pkl', 'wb') as output:
         pickle.dump(winner, output, 1)
