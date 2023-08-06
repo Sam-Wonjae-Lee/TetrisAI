@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 from PIL import Image
 from typing import List
+import copy
 
 
 # field_end_addr = 0x04C7
@@ -90,8 +91,74 @@ def calculate_holes(field) -> int:
 
 
 def game_over(field) -> bool:
+    """ Detect when it is Game Over"""
     return any(cell == 1 for cell in field[0])
 
+
+# ===================================== For Testing ========================================
+
+# def main():
+#     env = retro.make('Tetris-Nes', state='StartLv0')
+#     field_start_addr = 0x0400
+#     num_rows = 20
+#     num_cols = 10
+#
+#     obs = env.reset()
+#     done = False
+#     prev_field = None
+#
+#     while not done:
+#     # for i in range(15000):
+#         field = read_field(env, field_start_addr, num_rows, num_cols)
+#         # This does not work since both variables refer to same object
+#         # prev_field = field
+#         print('* ' * (len(field[0])))
+#         for row in field:
+#             print(' '.join(map(str, row)))
+#         print('* ' * (len(field[0])))
+#
+#         # Check for game over before taking any action
+#         if game_over(field) and prev_field is None:
+#             print("Game Over!")
+#             # Save the previous field state before the game over animation starts
+#             prev_field = copy.deepcopy(field)
+#             done = True
+#
+#         if done:
+#             break
+#
+#         column_heights = calculate_column_heights(field)
+#         print("Column Heights:", column_heights)
+#         bumpiness = calculate_bumpiness(column_heights)
+#         print("Bumpiness:", bumpiness)
+#         column_holes = calculate_holes(field)
+#         print("Column Holes:", column_holes)
+#
+#         action = env.action_space.sample()
+#         obs, _, done, _ = env.step(action)
+#         env.render()
+#
+#     env.close()
+#
+#     if prev_field is not None:
+#         # Do something with the previous field state before game over
+#         # For example, you can save it to a file, analyze, or use it for training.
+#         print("Previous field state before game over:")
+#         for row in prev_field:
+#             print(' '.join(map(str, row)))
+#         column_heights = calculate_column_heights(prev_field)
+#         print("Previous Column Heights:", column_heights)
+#         bumpiness = calculate_bumpiness(column_heights)
+#         print("Previous Bumpiness:", bumpiness)
+#         column_holes = calculate_holes(prev_field)
+#         print("Previous Column Holes:", column_holes)
+#
+#
+# if __name__ == '__main__':
+#     main()
+
+
+# ===================================== Run Single Instance ========================================
 
 # env = retro.make('Tetris-Nes', state='StartLv0')
 # field_start_addr = 0x0400
@@ -116,8 +183,13 @@ def game_over(field) -> bool:
 #
 #         while not gameover:
 #             # Uncomment to see NES Tetris running in emulator
-#             # env.render()
+#             env.render()
 #             frame += 1
+#
+#             # buttons = env.buttons
+#             # active_buttons = [env.buttons[i] for i, button in enumerate(buttons) if button]
+#             # print("All button states:", buttons)
+#             # print("Active buttons:", active_buttons)
 #
 #             obs = cv2.resize(obs, (inx, iny))
 #             obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
@@ -128,7 +200,7 @@ def game_over(field) -> bool:
 #             obs, rew, done, info = env.step(nnOutput)
 #
 #             cleared_lines = info['cleared_lines']
-#             # score = info['score']
+#             score = info['score']
 #             field = read_field(env, field_start_addr, num_rows, num_cols)
 #             if game_over(field):
 #                 gameover = True
@@ -147,98 +219,120 @@ def game_over(field) -> bool:
 #                 column_holes = calculate_holes(field)
 #                 print("Column Holes:", column_holes)
 #                 print("Gameover:", game_over(field))
+#                 print("Time Survived:", frame)
+#                 print("Score:", score)
 #
 #                 fitness_current = (-0.860 * aggregate_height) + (0.433 * cleared_lines) + \
-#                                   (-0.824 * column_holes) + (-0.343 * bumpiness)
+#                                   (-0.824 * column_holes) + (-0.343 * bumpiness) + (0.001 * frame) + \
+#                                   (0.01 * score)
 #
 #                 if fitness_current > current_max_fitness:
 #                     current_max_fitness = fitness_current
 #                 print(genome_id, fitness_current)
 #
 #             genome.fitness = fitness_current
+#
+#
+# config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+#                      neat.DefaultSpeciesSet, neat.DefaultStagnation,
+#                      'config-feedforward-tetris')
+#
+# p = neat.Population(config)
+#
+# p.add_reporter(neat.StdOutReporter(True))
+# stats = neat.StatisticsReporter()
+# p.add_reporter(stats)
+# p.add_reporter(neat.Checkpointer(10))
+#
+# winner = p.run(eval_genomes)
+#
+# with open('winner.pkl', 'wb') as output:
+#     pickle.dump(winner, output, 1)
 
 
-class Worker(object):
-    def __init__(self, genome, config):
-        self.genome = genome
-        self.config = config
+# ===================================== Parallelization: Run Multiple Instances ========================================
 
-    def work(self):
-        self.env = retro.make('Tetris-Nes', state='StartLv0')
-        self.env.reset()
-        obs, _, _, _ = self.env.step(self.env.action_space.sample())
-
-        inx = int(obs.shape[0] / 8)
-        iny = int(obs.shape[1] / 8)
-
-        net = neat.nn.recurrent.RecurrentNetwork.create(self.genome, self.config)
-        fitness = 0
-        frame = 0
-        gameover = False
-
-        field_start_addr = 0x0400
-        num_rows = 20
-        num_cols = 10
-
-        while not gameover:
-            # Uncomment to see NES Tetris running in emulator
-            # self.env.render()
-            frame += 1
-            obs = cv2.resize(obs, (inx, iny))
-            obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
-            obs = np.reshape(obs, (inx, iny))
-
-            imgarray = np.ndarray.flatten(obs)
-            imgarray = np.interp(imgarray, (0, 254), (-1, +1))
-            actions = net.activate(imgarray)
-
-            obs, rew, done, info = self.env.step(actions)
-
-            cleared_lines = info['cleared_lines']
-            field = read_field(self.env, field_start_addr, num_rows, num_cols)
-
-            if game_over(field):
-                gameover = True
-
-            if gameover:
-                print('* ' * (len(field[0])))
-                for row in field:
-                    print(' '.join(map(str, row)))
-                print('* ' * (len(field[0])))
-                column_heights = calculate_column_heights(field)
-                aggregate_height = sum(column_heights)
-                print("Column Heights:", column_heights)
-                print("Cleared Lines:", cleared_lines)
-                bumpiness = calculate_bumpiness(column_heights)
-                print("Bumpiness:", bumpiness)
-                column_holes = calculate_holes(field)
-                print("Column Holes:", column_holes)
-                print("Gameover:", game_over(field))
-
-                fitness += (-0.860 * aggregate_height) + (0.433 * cleared_lines) + \
-                           (-0.824 * column_holes) + (-0.343 * bumpiness)
-
-        print(fitness)
-        return fitness
-
-
-def eval_genomes(genome, config):
-    worky = Worker(genome, config)
-    return worky.work()
-
-
-config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                     neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                     'config-feedforward-tetris')
-p = neat.Population(config)
-p.add_reporter(neat.StdOutReporter(True))
-stats = neat.StatisticsReporter()
-p.add_reporter(stats)
-p.add_reporter(neat.Checkpointer(10))
-
-
-if __name__ == '__main__':
-    pe = neat.ParallelEvaluator(10, eval_genomes)
-    winner = p.run(pe.evaluate)
-    with open('winner.pkl', 'wb') as output:
-        pickle.dump(winner, output, 1)
+# class Worker(object):
+#     def __init__(self, genome, config):
+#         self.genome = genome
+#         self.config = config
+#
+#     def work(self):
+#         self.env = retro.make('Tetris-Nes', state='StartLv0')
+#         obs = self.env.reset()
+#         action = self.env.action_space.sample()
+#         inx, iny, inc = self.env.observation_space.shape
+#         inx = int(inx / 8)
+#         iny = int(iny / 8)
+#
+#         net = neat.nn.recurrent.RecurrentNetwork.create(self.genome, self.config)
+#         fitness = 0
+#         frame = 0
+#         gameover = False
+#
+#         field_start_addr = 0x0400
+#         num_rows = 20
+#         num_cols = 10
+#
+#         while not gameover:
+#             # Uncomment to see NES Tetris running in emulator
+#             # self.env.render()
+#             frame += 1
+#             obs = cv2.resize(obs, (inx, iny))
+#             obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
+#             obs = np.reshape(obs, (inx, iny))
+#             imgarray = np.ndarray.flatten(obs)
+#
+#             nnOutput = net.activate(imgarray)
+#             obs, rew, done, info = self.env.step(nnOutput)
+#
+#             cleared_lines = info['cleared_lines']
+#             field = read_field(self.env, field_start_addr, num_rows, num_cols)
+#
+#             if game_over(field):
+#                 gameover = True
+#
+#             if gameover:
+#                 print('* ' * (len(field[0])))
+#                 for row in field:
+#                     print(' '.join(map(str, row)))
+#                 print('* ' * (len(field[0])))
+#                 column_heights = calculate_column_heights(field)
+#                 aggregate_height = sum(column_heights)
+#                 print("Column Heights:", column_heights)
+#                 print("Cleared Lines:", cleared_lines)
+#                 bumpiness = calculate_bumpiness(column_heights)
+#                 print("Bumpiness:", bumpiness)
+#                 column_holes = calculate_holes(field)
+#                 print("Column Holes:", column_holes)
+#                 print("Gameover:", game_over(field))
+#
+#                 fitness = (-0.510066 * aggregate_height) + (0.760666 * cleared_lines) + \
+#                           (-0.35663 * column_holes) + (-0.184483 * bumpiness)
+#
+#                 if all(cell == 1 for cell in field[0]):
+#                     fitness = -150
+#
+#         print(fitness)
+#         return fitness
+#
+#
+# def eval_genomes(genome, config):
+#     worky = Worker(genome, config)
+#     return worky.work()
+#
+#
+# config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+#                      neat.DefaultSpeciesSet, neat.DefaultStagnation,
+#                      'config-feedforward-tetris')
+# p = neat.Population(config)
+# p.add_reporter(neat.StdOutReporter(True))
+# stats = neat.StatisticsReporter()
+# p.add_reporter(stats)
+# p.add_reporter(neat.Checkpointer(10))
+#
+# if __name__ == '__main__':
+#     pe = neat.ParallelEvaluator(10, eval_genomes)
+#     winner = p.run(pe.evaluate)
+#     with open('winner.pkl', 'wb') as output:
+#         pickle.dump(winner, output, 1)
