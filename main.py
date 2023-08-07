@@ -72,22 +72,37 @@ def calculate_bumpiness(column_heights) -> int:
 
 
 def calculate_holes(field) -> int:
-    # Initialize the list to store the number of holes in each column
     column_holes = [0] * len(field[0])
 
-    # Iterate through each column
     for col in range(len(field[0])):
         holes = 0
-        block_above = False
 
-        for row in range(len(field)):
-            if field[row][col] == 1:  # Check for an occupied cell
-                block_above = True
-            elif field[row][col] == 0 and block_above:
-                # Count the number of empty cells (holes) below the current cell in the column
+        for row in range(1, len(field)):  # Start from the second row
+            if field[row][col] == 0 and field[row - 1][col] == 1:
                 holes += 1
+
         column_holes[col] = holes
+
     return sum(column_holes)
+
+
+# def calculate_holes(field) -> int:
+#     # Initialize the list to store the number of holes in each column
+#     column_holes = [0] * len(field[0])
+#
+#     # Iterate through each column
+#     for col in range(len(field[0])):
+#         holes = 0
+#         block_above = False
+#
+#         for row in range(len(field)):
+#             if field[row][col] == 1:  # Check for an occupied cell
+#                 block_above = True
+#             elif field[row][col] == 0 and block_above:
+#                 # Count the number of empty cells (holes) below the current cell in the column
+#                 holes += 1
+#         column_holes[col] = holes
+#     return sum(column_holes)
 
 
 def game_over(field) -> bool:
@@ -297,6 +312,7 @@ class Worker(object):
         fitness = 0
         frame = 0
         gameover = False
+        prev_field = None
 
         field_start_addr = 0x0400
         num_rows = 20
@@ -315,31 +331,58 @@ class Worker(object):
             obs, rew, done, info = self.env.step(nnOutput)
 
             cleared_lines = info['cleared_lines']
+            score = info['score']
             field = read_field(self.env, field_start_addr, num_rows, num_cols)
 
             if game_over(field):
                 gameover = True
+            else:
+                prev_field = [row[:] for row in field]
 
             if gameover:
+                # Print final field
+                print("Final Field:")
                 print('* ' * (len(field[0])))
                 for row in field:
                     print(' '.join(map(str, row)))
                 print('* ' * (len(field[0])))
-                column_heights = calculate_column_heights(field)
-                aggregate_height = sum(column_heights)
-                print("Column Heights:", column_heights)
-                print("Cleared Lines:", cleared_lines)
-                bumpiness = calculate_bumpiness(column_heights)
-                print("Bumpiness:", bumpiness)
-                column_holes = calculate_holes(field)
-                print("Column Holes:", column_holes)
-                print("Gameover:", game_over(field))
 
-                fitness = (-0.510066 * aggregate_height) + (0.760666 * cleared_lines) + \
-                          (-0.35663 * column_holes) + (-0.184483 * bumpiness)
+                # Print previous field one frame before game over
+                print("Previous Field:")
+                print('* ' * (len(prev_field[0])))
+                for row in prev_field:
+                    print(' '.join(map(str, row)))
+                print('* ' * (len(prev_field[0])))
 
                 if all(cell == 1 for cell in field[0]):
-                    fitness = -150
+                    column_heights = calculate_column_heights(prev_field)
+                    aggregate_height = sum(column_heights)
+                    print("Previous Column Heights:", column_heights)
+                    print("Cleared Lines:", cleared_lines)
+                    bumpiness = calculate_bumpiness(column_heights)
+                    print("Previous Bumpiness:", bumpiness)
+                    column_holes = calculate_holes(prev_field)
+                    print("Previous Column Holes:", column_holes)
+                    print("Gameover:", game_over(field))
+                    print("Time Survived:", frame)
+                    print("Score:", score)
+
+                else:
+                    column_heights = calculate_column_heights(field)
+                    aggregate_height = sum(column_heights)
+                    print("Column Heights:", column_heights)
+                    print("Cleared Lines:", cleared_lines)
+                    bumpiness = calculate_bumpiness(column_heights)
+                    print("Bumpiness:", bumpiness)
+                    column_holes = calculate_holes(field)
+                    print("Column Holes:", column_holes)
+                    print("Gameover:", game_over(field))
+                    print("Time Survived:", frame)
+                    print("Score:", score)
+
+                fitness = (-0.860 * aggregate_height) + (0.433 * cleared_lines) + \
+                          (-0.824 * column_holes) + (-0.343 * bumpiness) + (0.005 * frame) + \
+                          (0.01 * score)
 
         print(fitness)
         return fitness
