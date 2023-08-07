@@ -380,8 +380,8 @@ class Worker(object):
                     print("Time Survived:", frame)
                     print("Score:", score)
 
-                fitness = (-0.860 * aggregate_height) + (0.433 * cleared_lines) + \
-                          (-0.824 * column_holes) + (-0.343 * bumpiness) + (0.005 * frame) + \
+                fitness = (-0.510066 * aggregate_height) + (0.760666 * cleared_lines) + \
+                          (-0.35663 * column_holes) + (-0.184483 * bumpiness) + (0.005 * frame) + \
                           (0.01 * score)
 
         print(fitness)
