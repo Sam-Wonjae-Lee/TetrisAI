@@ -5,7 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fc81f657-eb65-4353-a1f0-85cf23653671" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/neat-checkpoint-0" beforeDir="false" afterPath="$PROJECT_DIR$/neat-checkpoint-0" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config-feedforward-tetris" beforeDir="false" afterPath="$PROJECT_DIR$/config-feedforward-tetris" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/neat-checkpoint-0" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
