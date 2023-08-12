@@ -4,20 +4,23 @@ import pickle
 import numpy as np
 import cv2
 from PIL import Image
-from typing import List
+from typing import List, Dict
 import copy
 import matplotlib.pyplot as plt
+
+import pieces
 
 
 # field_end_addr = 0x04C7
 # current_piece_addr = 0x0062
 # next_piece_addr = 0x00BF
+# "buttons": ["B", null, "SELECT", "START", "UP", "DOWN", "LEFT", "RIGHT", "A"]
 
 
-def read_field(env, field_start_addr, num_rows, num_cols) -> List[List[int]]:
+def read_field(env: retro.retro_env.RetroEnv, field_start_addr=0x0400, num_rows=20, num_cols=10) -> List[List[int]]:
     """
-    Represents the field as 0s and 1s.
-    0 means empty tile and 1 means occupied tile.
+    Reads the current state (env) of the board by extracting the RAM data to represents the board (field) as 0s and 1s.
+    0 means empty tile and 1 means occupied tile. The field start address is 0x0400.
     """
     # Get the game state from the environment RAM
     state = env.get_ram()
@@ -40,7 +43,7 @@ def read_field(env, field_start_addr, num_rows, num_cols) -> List[List[int]]:
     return field
 
 
-def calculate_column_heights(field) -> List[int]:
+def calculate_column_heights(field: List[List[int]]) -> List[int]:
     """
     Gives a list of the height of each column.
     Height is defined as the distance from the highest tile in each column
@@ -63,7 +66,15 @@ def calculate_column_heights(field) -> List[int]:
     return column_heights
 
 
-def calculate_bumpiness(column_heights) -> int:
+def calculate_bumpiness(column_heights: List[int]) -> int:
+    """
+    Returns the bumpiness based on the board's column heights.
+    Bumpiness calculates how smooth the top of the board is.
+
+    0 1 0 0
+    0 1 1 1 -> bumpiness = |1 - 3| + |3 - 2| + |2 - 2| = 3
+    1 1 1 1
+    """
     # Initialize bumpiness to zero
     bumpiness = 0
 
@@ -74,9 +85,9 @@ def calculate_bumpiness(column_heights) -> int:
     return bumpiness
 
 
-def calculate_holes(field) -> int:
+def calculate_holes(field: List[List[int]]) -> int:
     """
-    For this function, a hole is defined if there is an empty space with a non-empty space directly above it
+    For this function, a hole is defined if there is an empty space with a non-empty space directly above it.
 
     0 1 0 0
     0 0 0 0  -> # of holes = 1
@@ -122,14 +133,110 @@ def calculate_holes(field) -> int:
 #     return sum(column_holes)
 
 
-def game_over(field) -> bool:
-    """ Detect when it is Game Over"""
+def game_over(field: List[List[int]]) -> bool:
+    """
+    Detect when it is Game Over. It is Game Over when the Game Over animation starts.
+    """
     return any(cell == 1 for cell in field[0])
 
 
-# def move_piece(best_col, piece, rotation):
-#     start_col = pieces.piece_column[rotation]
+def get_best_field(playfield: List[List[int]], current_piece_val: int, num_cols=10):
+    """
+    Returns the best field out of all the possible fields based on playfield.
+    The function chooses the best field by calculating the fitness of each playfield.
+    Fitness is equal to (-0.510066 * aggregate_height) + (0.760666 * cleared_lines) + (-0.35663 * holes) + \
+        (-0.184483 * bumpiness).
+    """
+    possible_fields = pieces.get_possible_fields(playfield, current_piece_val, num_cols)
+    max_fitness = -1000000
+    field_index = 0
 
+    for i in range(len(possible_fields)):
+
+        # field = possible_fields[i]
+        # print('* ' * (len(field[0])))
+        # for row in field:
+        #     print(' '.join(map(str, row)))
+        # print('* ' * (len(field[0])))
+
+        aggregate_height = sum(calculate_column_heights(possible_fields[i]))
+        # If there is all 1s in a row, cleared_lines += 1
+        cleared_lines = 0
+        for row in possible_fields[i]:
+            if all(cell == 1 for cell in row):
+                cleared_lines += 1
+        holes = calculate_holes(possible_fields[i])
+        bumpiness = calculate_bumpiness(calculate_column_heights(possible_fields[i]))
+        current_fitness = (-0.510066 * aggregate_height) + (0.760666 * cleared_lines) + (-0.35663 * holes) + \
+                          (-0.184483 * bumpiness)
+        if current_fitness > max_fitness:
+            max_fitness = current_fitness
+            field_index = i
+
+    return possible_fields[field_index]
+
+
+def move_piece(best_col, piece, rotation) -> List[Dict[str, bool]]:
+    """
+    Returns a list of moves the AI should perform in order.
+    move_dict.keys() represents the availible buttons on the NES controller.
+    move_dict.values represents if the button were pressed or not.
+    best_col, piece and rotation are from getting the best move from potential fields.
+
+    >>> move_piece(5, 2, 1)
+    [{'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT':
+    False, 'A': False}]
+    >>> move_piece(5, 2, 0)
+    [{'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': False, 'RIGHT':
+    False, 'A': False}, {'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT':
+    False, 'RIGHT': False, 'A': False}]
+    """
+    start_col = pieces.piece_column[rotation]
+    move_list = []
+    while best_col != start_col or piece != rotation:
+        move_dict = {"B": False, "null": False, "SELECT": False, "START": False, "UP": False, "DOWN": False,
+                     "LEFT": False, "RIGHT": False, "A": False}
+        # For rotation
+        if piece > rotation:
+            move_dict["B"] = True
+            rotation += 1
+        elif piece < rotation:
+            move_dict["A"] = True
+            rotation -= 1
+
+        # For moving left or right
+        if best_col < start_col:
+            move_dict["LEFT"] = True
+            best_col += 1
+        elif best_col > start_col:
+            move_dict["RIGHT"] = True
+            best_col -= 1
+
+        move_list.append(move_dict)
+
+    return move_list
+
+
+# for i in range(1000):
+#     move_list = []
+#     action = move_list[i]
+#     for values in action.values():
+#         env.step(values)
+
+# env = retro.make('Tetris-Nes', state='StartLv0')
+# obs = env.reset()
+# # move_list = env.action_space
+# # print(move_list)
+#
+# for i in range(1000):
+#     env.render()
+#     # action = env.action_space.sample()
+#     # print(action)
+#     action = [0, 0, 0, 0, 0, 0, 0, 0, 1]
+#     env.step(action)
+#     # move_list = [1, 0, 1, 0, 0, 0, 1, 0, 1]
+#     # observation, reward, done, info = env.step(move_list)
+# env.close()
 
 # ===================================== For Testing ========================================
 
