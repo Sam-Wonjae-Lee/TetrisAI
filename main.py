@@ -1,3 +1,5 @@
+import random
+
 import retro
 import neat
 import pickle
@@ -69,17 +71,20 @@ possible_rotations = {
     8: {8, 9},  # Z
     9: {8, 9},
 
-    10: {10},  # O
+    10: {10, 19},  # O
 
     11: {11, 12},  # S
     12: {11, 12},
 
+    13: {13, 14, 15, 16},
     14: {13, 14, 15, 16},  # L
     15: {13, 14, 15, 16},
     16: {13, 14, 15, 16},
 
     17: {17, 18},
-    18: {17, 18}  # I
+    18: {17, 18},  # I
+
+    19: {10, 19}  # O
 }
 
 pieces_shapes = {
@@ -148,7 +153,10 @@ pieces_shapes = {
          [1],
          [1]],
 
-    18: [[1, 1, 1, 1]]  # I horizontal
+    18: [[1, 1, 1, 1]],  # I horizontal
+
+    19: [[1, 1],  # O
+         [1, 1]]
 }
 
 # Start drop column of the left side of a piece
@@ -171,7 +179,8 @@ piece_column = {
     15: 5,
     16: 5,
     17: 6,
-    18: 4
+    18: 4,
+    19: 5
 }
 
 # The pivot point of rotation for each piece
@@ -194,7 +203,8 @@ piece_pivot = {
     15: (1, 1),
     16: (1, 1),
     17: (2, 0),
-    18: (0, 2)
+    18: (0, 2),
+    19: (0, 1)
 
     # 0: pieces_shapes[0][1][1],
     # 1: pieces_shapes[1][1][0],
@@ -462,52 +472,52 @@ def calculate_bumpiness(column_heights: List[int]) -> int:
     return bumpiness
 
 
-def calculate_holes(field: List[List[int]]) -> int:
-    """
-    For this function, a hole is defined if there is an empty space with a non-empty space directly above it.
-
-    0 1 0 0
-    0 0 0 0  -> # of holes = 1
-    0 0 0 0
-    """
-    column_holes = [0] * len(field[0])
-
-    for col in range(len(field[0])):
-        holes = 0
-
-        for row in range(1, len(field)):  # Start from the second row
-            if field[row][col] == 0 and field[row - 1][col] == 1:
-                holes += 1
-
-        column_holes[col] = holes
-
-    return sum(column_holes)
-
-
-# def calculate_holes(field) -> int:
+# def calculate_holes(field: List[List[int]]) -> int:
 #     """
-#     For this function, a hole is defined if there is an empty with at least a non-empty space above it
+#     For this function, a hole is defined if there is an empty space with a non-empty space directly above it.
 #
 #     0 1 0 0
-#     0 0 0 0  -> # of holes = 2
+#     0 0 0 0  -> # of holes = 1
 #     0 0 0 0
 #     """
-#     # Initialize the list to store the number of holes in each column
 #     column_holes = [0] * len(field[0])
 #
-#     # Iterate through each column
 #     for col in range(len(field[0])):
 #         holes = 0
-#         block_above = False
 #
-#         for row in range(len(field)):
-#             if field[row][col] == 1:  # Check for an occupied cell
-#                 block_above = True
-#             elif field[row][col] == 0 and block_above:
-#                 # Count the number of empty cells (holes) below the current cell in the column
+#         for row in range(1, len(field)):  # Start from the second row
+#             if field[row][col] == 0 and field[row - 1][col] == 1:
 #                 holes += 1
+#
 #         column_holes[col] = holes
+#
 #     return sum(column_holes)
+
+
+def calculate_holes(field) -> int:
+    """
+    For this function, a hole is defined if there is an empty with at least a non-empty space above it
+
+    0 1 0 0
+    0 0 0 0  -> # of holes = 2
+    0 0 0 0
+    """
+    # Initialize the list to store the number of holes in each column
+    column_holes = [0] * len(field[0])
+
+    # Iterate through each column
+    for col in range(len(field[0])):
+        holes = 0
+        block_above = False
+
+        for row in range(len(field)):
+            if field[row][col] == 1:  # Check for an occupied cell
+                block_above = True
+            elif field[row][col] == 0 and block_above:
+                # Count the number of empty cells (holes) below the current cell in the column
+                holes += 1
+        column_holes[col] = holes
+    return sum(column_holes)
 
 
 def game_over(field: List[List[int]]) -> bool:
@@ -517,17 +527,21 @@ def game_over(field: List[List[int]]) -> bool:
     return all(cell == 1 for cell in field[0])
 
 
-# TODO: Fix this function. Doesn't work with updated_field
 def get_best_field(playfield: List[List[int]], current_piece_val: int, num_cols=10):
     """
     Returns the best field out of all the possible fields based on playfield.
     The function chooses the best field by calculating the fitness of each playfield.
     Fitness is equal to (-0.510066 * aggregate_height) + (0.760666 * cleared_lines) + (-0.35663 * holes) + \
         (-0.184483 * bumpiness).
+
+    >>> initial_field = [[0 for _ in range(10)] for _ in range(20)]
+    >>> get_best_field(initial_field, 18, 10)
+    (1, 18, 18)
     """
     possible_fields_list = get_possible_fields(playfield, current_piece_val, num_cols)
     max_fitness = -1000000
     field_index = 0
+    # max_fitness_indices = []
 
     for i in range(len(possible_fields_list)):
 
@@ -547,65 +561,126 @@ def get_best_field(playfield: List[List[int]], current_piece_val: int, num_cols=
         bumpiness = calculate_bumpiness(possible_field_dict['col_heights'])
         current_fitness = (-0.510066 * aggregate_height) + (0.760666 * cleared_lines) + (-0.35663 * holes) + \
                           (-0.184483 * bumpiness)
+        # print(current_fitness)
 
+        # if current_fitness > max_fitness:
+        #     max_fitness = current_fitness
+        #     max_fitness_indices = [i]
+        # elif current_fitness == max_fitness:
+        #     max_fitness_indices.append(i)
         if current_fitness > max_fitness:
             max_fitness = current_fitness
             field_index = i
 
-    print('* ' * (len(possible_fields_list[field_index]['field'])))
-    for row in possible_fields_list[field_index]['field']:
-        print(' '.join(map(str, row)))
-    print('* ' * (len(possible_fields_list[field_index]['field'])))
+    # print(max_fitness)
+    # print(max_fitness_indices)
+    # field_index = random.choice(max_fitness_indices)
+
+    # print('- ' * (len(possible_fields_list[field_index]['field'])))
+    # for row in possible_fields_list[field_index]['field']:
+    #     print(' '.join(map(str, row)))
+    # print('- ' * (len(possible_fields_list[field_index]['field'])))
 
     return possible_fields_list[field_index]['best_col'], possible_fields_list[field_index]['best_piece'], \
         possible_fields_list[field_index]['best_rotation']
 
 
-def move_piece(best_col, piece, rotation) -> List[Dict[str, bool]]:
+def move_piece(current_col, current_rotation, target_col, target_rotation) -> List[Dict[str, bool]]:
     """
-    Returns a list of moves the AI should perform in order.
-    move_dict.keys() represents the availible buttons on the NES controller.
-    move_dict.values represents if the button were pressed or not.
-    best_col, piece and rotation are from getting the best move from potential fields.
+    Returns a list of moves the AI should perform in order to move the current piece to the desired position and orientation.
+    move_dict.keys() represent the available buttons on the NES controller.
+    move_dict.values represent if the button should be pressed or not.
 
-    >>> move_piece(5, 2, 1)
-    [{'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT':
-    False, 'A': False}]
-    >>> move_piece(5, 2, 0)
-    [{'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': False, 'RIGHT':
-    False, 'A': False}, {'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT':
-    False, 'RIGHT': False, 'A': False}]
-    >>> move_piece(1, 18, 18)
-    [{'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT':
-    False, 'A': False}, {'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False,
-    'LEFT': True, 'RIGHT': False, 'A': False}, {'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False,
-     'DOWN': False, 'LEFT': True, 'RIGHT': False, 'A': False}]
+    Args:
+        current_col (int): The current column of the piece.
+        current_rotation (int): The current rotation of the piece.
+        target_col (int): The target column for the piece.
+        target_rotation (int): The target rotation for the piece.
+
+    Returns:
+        List[Dict[str, bool]]: A list of move dictionaries representing the sequence of button presses.
+
+    >>> move_piece(18, 5, 18, 1, 18, 17)
+    [{'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': True,
+    'RIGHT': False, 'A': True}, {'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False,
+     'LEFT': True, 'RIGHT': False, 'A': False}, {'B': False, 'null': False, 'SELECT': False, 'START': False,
+     'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT': False, 'A': False}, {'B': False, 'null': False, 'SELECT': False,
+      'START': False, 'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT': False, 'A': False}]
     """
-    start_col = piece_column[rotation]
     move_list = []
-    while best_col != start_col or piece != rotation:
+
+    # Rotate the piece if needed
+    while current_rotation != target_rotation:
         move_dict = {"B": False, "null": False, "SELECT": False, "START": False, "UP": False, "DOWN": False,
                      "LEFT": False, "RIGHT": False, "A": False}
-        # For rotation
-        if piece > rotation:
+        if current_rotation < target_rotation:
             move_dict["B"] = True
-            rotation += 1
-        elif piece < rotation:
+            current_rotation += 1
+        elif current_rotation > target_rotation:
             move_dict["A"] = True
-            rotation -= 1
-
-        # For moving left or right
-        if best_col < start_col:
-            move_dict["LEFT"] = True
-            best_col += 1
-        elif best_col > start_col:
-            move_dict["RIGHT"] = True
-            best_col -= 1
-
+            current_rotation -= 1
         move_list.append(move_dict)
 
-    print(move_list)
+    # Move the piece left or right
+    while current_col != target_col:
+        move_dict = {"B": False, "null": False, "SELECT": False, "START": False, "UP": False, "DOWN": False,
+                     "LEFT": False, "RIGHT": False, "A": False}
+        if current_col < target_col:
+            move_dict["RIGHT"] = True
+            current_col += 1
+        elif current_col > target_col:
+            move_dict["LEFT"] = True
+            current_col -= 1
+        move_list.append(move_dict)
+
     return move_list
+
+
+# def move_piece(best_col, piece, rotation) -> List[Dict[str, bool]]:
+#     """
+#     Returns a list of moves the AI should perform in order.
+#     move_dict.keys() represents the availible buttons on the NES controller.
+#     move_dict.values represents if the button were pressed or not.
+#     best_col, piece and rotation are from getting the best move from potential fields.
+#
+#     >>> move_piece(5, 2, 1)
+#     [{'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT':
+#     False, 'A': False}]
+#     >>> move_piece(5, 2, 0)
+#     [{'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': False, 'RIGHT':
+#     False, 'A': False}, {'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT':
+#     False, 'RIGHT': False, 'A': False}]
+#     >>> move_piece(1, 18, 18)
+#     [{'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT':
+#     False, 'A': False}, {'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False,
+#     'LEFT': True, 'RIGHT': False, 'A': False}, {'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False,
+#      'DOWN': False, 'LEFT': True, 'RIGHT': False, 'A': False}]
+#     """
+#     start_col = piece_column[rotation]
+#     move_list = []
+#     while best_col != start_col or piece != rotation:
+#         move_dict = {"B": False, "null": False, "SELECT": False, "START": False, "UP": False, "DOWN": False,
+#                      "LEFT": False, "RIGHT": False, "A": False}
+#         # For rotation
+#         if piece > rotation:
+#             move_dict["B"] = True
+#             rotation += 1
+#         elif piece < rotation:
+#             move_dict["A"] = True
+#             rotation -= 1
+#
+#         # For moving left or right
+#         if best_col < start_col:
+#             move_dict["LEFT"] = True
+#             best_col += 1
+#         elif best_col > start_col:
+#             move_dict["RIGHT"] = True
+#             best_col -= 1
+#
+#         move_list.append(move_dict)
+#
+#     # print(move_list)
+#     return move_list
 
 
 env = retro.make('Tetris-Nes', state='StartLv0')
@@ -625,6 +700,7 @@ def eval_genomes(genomes, config):
         prev_field = None
         frame = 0
         cleared_lines = 0
+
         while not gameover:
             frame += 1
             state = env.get_ram()
@@ -655,14 +731,21 @@ def eval_genomes(genomes, config):
             # for row in update_field:
             #     print(' '.join(map(str, row)))
             # print('* ' * (len(update_field[0])))
-            best_col, best_piece, best_rotation = get_best_field(update_field, current_piece, num_cols)
-            move_list = move_piece(best_col, best_piece, best_rotation)
-            print(move_list)
 
-            # TODO: Fix this (For some reason read_field doesnt read the current falling pieces)
-            for move in move_list:
-                _, _, _, info = env.step(list(move.values()))
-                # score = info['score']
+            # best field or move piece needs to consider the current_pieces' position
+            best_col, best_piece, best_rotation = get_best_field(field, current_piece, num_cols)
+            print(best_col, best_piece, best_rotation)
+            move_list = move_piece(x_position + 1, current_piece, best_col, best_rotation)
+            print('Move List:', move_list)
+
+            if move_list == []:
+                _, _, _, info = env.step([])  # Advance the environment without any inputs
+            else:
+                for move in move_list:
+                    print('Current Move:', move)
+                    if move:
+                        _, _, _, info = env.step(list(move.values()))
+                        # score = info['score']
 
             if game_over(update_field):
                 gameover = True
@@ -728,7 +811,6 @@ winner = p.run(eval_genomes)
 
 with open('winner.pkl', 'wb') as output:
     pickle.dump(winner, output, 1)
-
 
 # env = retro.make('Tetris-Nes', state='StartLv0')
 # obs = env.reset()
