@@ -576,10 +576,10 @@ def get_best_field(playfield: List[List[int]], current_piece_val: int, num_cols=
     # print(max_fitness_indices)
     # field_index = random.choice(max_fitness_indices)
 
-    # print('- ' * (len(possible_fields_list[field_index]['field'])))
-    # for row in possible_fields_list[field_index]['field']:
-    #     print(' '.join(map(str, row)))
-    # print('- ' * (len(possible_fields_list[field_index]['field'])))
+    print('- ' * (len(possible_fields_list[field_index]['field'])))
+    for row in possible_fields_list[field_index]['field']:
+        print(' '.join(map(str, row)))
+    print('- ' * (len(possible_fields_list[field_index]['field'])))
 
     return possible_fields_list[field_index]['best_col'], possible_fields_list[field_index]['best_piece'], \
         possible_fields_list[field_index]['best_rotation']
@@ -614,10 +614,12 @@ def move_piece(current_col, current_rotation, target_col, target_rotation) -> Li
         move_dict = {"B": False, "null": False, "SELECT": False, "START": False, "UP": False, "DOWN": False,
                      "LEFT": False, "RIGHT": False, "A": False}
         if current_rotation < target_rotation:
-            move_dict["B"] = True
+            # move_dict["B"] = True
+            move_dict["A"] = True
             current_rotation += 1
         elif current_rotation > target_rotation:
-            move_dict["A"] = True
+            # move_dict["A"] = True
+            move_dict["B"] = True
             current_rotation -= 1
         move_list.append(move_dict)
 
@@ -683,7 +685,7 @@ def move_piece(current_col, current_rotation, target_col, target_rotation) -> Li
 #     return move_list
 
 
-env = retro.make('Tetris-Nes', state='StartLv0')
+env = retro.make('Tetris-Nes', state='StartLv5')
 field_start_addr = 0x0400
 num_rows = 20
 num_cols = 10
@@ -711,7 +713,7 @@ def eval_genomes(genomes, config):
 
             print('Current Piece:', current_piece)
             print('Next Piece:', next_piece)
-            print('Frame:', frame)
+            # print('Frame:', frame)
 
             # Uncomment to see NES Tetris running in emulator
             env.render()
@@ -727,15 +729,21 @@ def eval_genomes(genomes, config):
 
             field = read_field(env, field_start_addr, num_rows, num_cols)
             update_field = update_field_with_piece(field, current_piece, (x_position, y_position))
-            # print('* ' * (len(update_field[0])))
-            # for row in update_field:
-            #     print(' '.join(map(str, row)))
-            # print('* ' * (len(update_field[0])))
+            print("Playfield With Piece:")
+            print('* ' * (len(update_field[0])))
+            for row in update_field:
+                print(' '.join(map(str, row)))
+            print('* ' * (len(update_field[0])))
 
             # best field or move piece needs to consider the current_pieces' position
             best_col, best_piece, best_rotation = get_best_field(field, current_piece, num_cols)
-            print(best_col, best_piece, best_rotation)
-            move_list = move_piece(x_position + 1, current_piece, best_col, best_rotation)
+            # print(best_col, best_piece, best_rotation)
+            print('X Position:', x_position)
+            print('Best Column:', best_col)
+            pivot_x, pivot_y = piece_pivot[current_piece]
+            adjusted_x = x_position - pivot_y
+
+            move_list = move_piece(adjusted_x + 1, current_piece, best_col, best_rotation)
             print('Move List:', move_list)
 
             if move_list == []:
