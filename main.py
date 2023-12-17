@@ -1,17 +1,30 @@
-import random
+""" Tetris AI
+Created by Wonjae Lee
 
+Description:
+This file contains all code to the run the program, including running Tetris and the program playing it.
+
+Instructions:
+1. Python must be run on version 3.7
+2. Install all requirements from requirements.txt
+3. Run main.py file
+
+"""
+
+
+import random
 import retro
-import neat
 import pickle
-import numpy as np
 import cv2
-from PIL import Image
 from typing import List, Dict, Tuple
+import neat
+
 import copy
-import matplotlib.pyplot as plt
+import numpy as np
 
 # import pieces
-
+# from PIL import Image
+# import matplotlib.pyplot as plt
 
 # field_end_addr = 0x04C7
 # current_piece_addr = 0x0062
@@ -56,7 +69,9 @@ import matplotlib.pyplot as plt
 
 """
 
-# Dictionary of each tetromino spawn value paired with possible rotations value
+"""
+Dictionary of each tetromino spawn value paired with possible rotations value
+"""
 possible_rotations = {
     0: {0, 1, 2, 3},
     1: {0, 1, 2, 3},
@@ -541,15 +556,10 @@ def get_best_field(playfield: List[List[int]], current_piece_val: int, num_cols=
     possible_fields_list = get_possible_fields(playfield, current_piece_val, num_cols)
     max_fitness = -1000000
     field_index = 0
-    # max_fitness_indices = []
 
     for i in range(len(possible_fields_list)):
 
         possible_field_dict = possible_fields_list[i]
-        # print('* ' * (len(possible_field_dict['field'])))
-        # for row in possible_field_dict['field']:
-        #     print(' '.join(map(str, row)))
-        # print('* ' * (len(possible_field_dict['field'])))
 
         aggregate_height = sum(possible_field_dict['col_heights'])
         # If there is all 1s in a row, cleared_lines += 1
@@ -561,20 +571,10 @@ def get_best_field(playfield: List[List[int]], current_piece_val: int, num_cols=
         bumpiness = calculate_bumpiness(possible_field_dict['col_heights'])
         current_fitness = (-0.510066 * aggregate_height) + (0.760666 * cleared_lines) + (-0.35663 * holes) + \
                           (-0.184483 * bumpiness)
-        # print(current_fitness)
 
-        # if current_fitness > max_fitness:
-        #     max_fitness = current_fitness
-        #     max_fitness_indices = [i]
-        # elif current_fitness == max_fitness:
-        #     max_fitness_indices.append(i)
         if current_fitness > max_fitness:
             max_fitness = current_fitness
             field_index = i
-
-    # print(max_fitness)
-    # print(max_fitness_indices)
-    # field_index = random.choice(max_fitness_indices)
 
     print('- ' * (len(possible_fields_list[field_index]['field'])))
     for row in possible_fields_list[field_index]['field']:
@@ -638,53 +638,6 @@ def move_piece(current_col, current_rotation, target_col, target_rotation) -> Li
     return move_list
 
 
-# def move_piece(best_col, piece, rotation) -> List[Dict[str, bool]]:
-#     """
-#     Returns a list of moves the AI should perform in order.
-#     move_dict.keys() represents the availible buttons on the NES controller.
-#     move_dict.values represents if the button were pressed or not.
-#     best_col, piece and rotation are from getting the best move from potential fields.
-#
-#     >>> move_piece(5, 2, 1)
-#     [{'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT':
-#     False, 'A': False}]
-#     >>> move_piece(5, 2, 0)
-#     [{'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': False, 'RIGHT':
-#     False, 'A': False}, {'B': True, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT':
-#     False, 'RIGHT': False, 'A': False}]
-#     >>> move_piece(1, 18, 18)
-#     [{'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False, 'LEFT': True, 'RIGHT':
-#     False, 'A': False}, {'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False, 'DOWN': False,
-#     'LEFT': True, 'RIGHT': False, 'A': False}, {'B': False, 'null': False, 'SELECT': False, 'START': False, 'UP': False,
-#      'DOWN': False, 'LEFT': True, 'RIGHT': False, 'A': False}]
-#     """
-#     start_col = piece_column[rotation]
-#     move_list = []
-#     while best_col != start_col or piece != rotation:
-#         move_dict = {"B": False, "null": False, "SELECT": False, "START": False, "UP": False, "DOWN": False,
-#                      "LEFT": False, "RIGHT": False, "A": False}
-#         # For rotation
-#         if piece > rotation:
-#             move_dict["B"] = True
-#             rotation += 1
-#         elif piece < rotation:
-#             move_dict["A"] = True
-#             rotation -= 1
-#
-#         # For moving left or right
-#         if best_col < start_col:
-#             move_dict["LEFT"] = True
-#             best_col += 1
-#         elif best_col > start_col:
-#             move_dict["RIGHT"] = True
-#             best_col -= 1
-#
-#         move_list.append(move_dict)
-#
-#     # print(move_list)
-#     return move_list
-
-
 env = retro.make('Tetris-Nes', state='StartLv5')
 field_start_addr = 0x0400
 num_rows = 20
@@ -729,11 +682,13 @@ def eval_genomes(genomes, config):
 
             field = read_field(env, field_start_addr, num_rows, num_cols)
             update_field = update_field_with_piece(field, current_piece, (x_position, y_position))
-            print("Playfield With Piece:")
-            print('* ' * (len(update_field[0])))
-            for row in update_field:
-                print(' '.join(map(str, row)))
-            print('* ' * (len(update_field[0])))
+
+            # Prints playfield with piece
+            # print("Playfield With Piece:")
+            # print('* ' * (len(update_field[0])))
+            # for row in update_field:
+            #     print(' '.join(map(str, row)))
+            # print('* ' * (len(update_field[0])))
 
             # best field or move piece needs to consider the current_pieces' position
             best_col, best_piece, best_rotation = get_best_field(field, current_piece, num_cols)
@@ -761,18 +716,6 @@ def eval_genomes(genomes, config):
                 prev_field = [row[:] for row in update_field]
 
             if gameover:
-                # Print final field
-                # print('* ' * (len(update_field[0])))
-                # for row in update_field:
-                #     print(' '.join(map(str, row)))
-                # print('* ' * (len(update_field[0])))
-
-                # Print previous field one frame before game over
-                # print("Previous Field (when game over):")
-                # print('* ' * (len(prev_field[0])))
-                # for row in prev_field:
-                #     print(' '.join(map(str, row)))
-                # print('* ' * (len(prev_field[0])))
 
                 # If game over animation happens at last frame
                 if all(cell == 1 for cell in field[0]):
@@ -819,385 +762,3 @@ winner = p.run(eval_genomes)
 
 with open('winner.pkl', 'wb') as output:
     pickle.dump(winner, output, 1)
-
-# env = retro.make('Tetris-Nes', state='StartLv0')
-# obs = env.reset()
-# frame = 0
-# # move_list = env.action_space
-# # print(move_list)
-#
-# for i in range(100):
-#     frame += 1
-#     env.render()
-#     state = env.get_ram()
-#     current_piece = state[0x0062]
-#     """
-#     x starts from 0 to 9 (based one the centre of the matrix aka the pivot point for piece rotation
-#         https://meatfighter.com/nintendotetrisai/#Evaluation_Function)
-#     y starts from 0 to 19
-#     """
-#     x_position = state[0x0040]
-#     y_position = state[0x0041]
-#     next_piece = state[0x00BF]
-#     field = read_field(env)
-#     # I need to save the current field so it updates each time time
-#     update_field = update_field_with_piece(field, current_piece, (x_position, y_position))
-#     print('* ' * (len(update_field[0])))
-#     for row in update_field:
-#         print(' '.join(map(str, row)))
-#     print('* ' * (len(update_field[0])))
-#     print('Current Piece:', current_piece)
-#     print('Next Piece:', next_piece)
-#     print('X Coord:', x_position)
-#     print('Y Coord:', y_position)
-#     print('Frame:', frame)
-#     # action = env.action_space.sample()
-#     # print(action)
-#     action = [0, 0, 0, 0, 0, 0, 1, 0, 0]
-#     env.step(action)
-#     # move_list = [1, 0, 1, 0, 0, 0, 1, 0, 1]
-#     # observation, reward, done, info = env.step(move_list)
-# env.close()
-
-# ===================================== For Testing ========================================
-
-# def main():
-#     env = retro.make('Tetris-Nes', state='StartLv0')
-#     field_start_addr = 0x0400
-#     num_rows = 20
-#     num_cols = 10
-#
-#     obs = env.reset()
-#     done = False
-#     prev_field = None
-#
-#     cropped_obs = obs[40:200, 88:168, :]
-#
-#     while not done:
-#
-#         # plt.imshow(cropped_obs)
-#         # plt.pause(1)
-#         # plt.clf()
-#         field = read_field(env, field_start_addr, num_rows, num_cols)
-#         # This does not work since both variables refer to same object
-#         # prev_field = field
-#         print('* ' * (len(field[0])))
-#         for row in field:
-#             print(' '.join(map(str, row)))
-#         print('* ' * (len(field[0])))
-#
-#         # Check for game over before taking any action
-#         if game_over(field) and prev_field is None:
-#             print("Game Over!")
-#             # Save the previous field state before the game over animation starts
-#             prev_field = copy.deepcopy(field)
-#             done = True
-#
-#         if done:
-#             break
-#
-#         column_heights = calculate_column_heights(field)
-#         print("Column Heights:", column_heights)
-#         bumpiness = calculate_bumpiness(column_heights)
-#         print("Bumpiness:", bumpiness)
-#         column_holes = calculate_holes(field)
-#         print("Column Holes:", column_holes)
-#
-#         action = env.action_space.sample()
-#         obs, _, done, _ = env.step(action)
-#         env.render()
-#
-#     env.close()
-#
-#     if prev_field is not None:
-#         # Do something with the previous field state before game over
-#         # For example, you can save it to a file, analyze, or use it for training.
-#         print("Previous field state before game over:")
-#         for row in prev_field:
-#             print(' '.join(map(str, row)))
-#         column_heights = calculate_column_heights(prev_field)
-#         print("Previous Column Heights:", column_heights)
-#         bumpiness = calculate_bumpiness(column_heights)
-#         print("Previous Bumpiness:", bumpiness)
-#         column_holes = calculate_holes(prev_field)
-#         print("Previous Column Holes:", column_holes)
-#
-#
-# if __name__ == '__main__':
-#     main()
-
-
-# ===================================== Run Single Instance ========================================
-
-# env = retro.make('Tetris-Nes', state='StartLv0')
-# field_start_addr = 0x0400
-# num_rows = 20
-# num_cols = 10
-#
-# imgarray = []
-#
-#
-# def eval_genomes(genomes, config):
-#     for genome_id, genome in genomes:
-#         obs = env.reset()
-#         action = env.action_space.sample()
-#         inx, iny, inc = env.observation_space.shape
-#         # print(inx, iny)
-#         # inx = int(inx / 8)
-#         # iny = int(iny / 8)
-#         net = neat.nn.recurrent.RecurrentNetwork.create(genome, config)
-#         current_max_fitness = 0
-#         fitness_current = 0
-#         frame = 0
-#         gameover = False
-#         prev_field = None
-#
-#         while not gameover:
-#             state = env.get_ram()
-#             current_piece = state[0x0062]
-#             next_piece = state[0x00BF]
-#
-#             print('Current Piece:', current_piece)
-#             print('Next Piece:', next_piece)
-#
-#             # Uncomment to see NES Tetris running in emulator
-#             env.render()
-#             frame += 1
-#
-#             # buttons = env.buttons
-#             # active_buttons = [env.buttons[i] for i, button in enumerate(buttons) if button]
-#             # print("All button states:", buttons)
-#             # print("Active buttons:", active_buttons)
-#
-#             cropped_obs = obs[40:200, 88:168, :]    # Width = 168 - 88 = 80, Height = 200 - 40 = 160
-#             # cropped_obs = cv2.resize(cropped_obs, (inx, iny))
-#             cropped_obs = cv2.resize(cropped_obs, (10, 20))
-#             # print(cropped_obs.shape)    # (30, 28, 3)
-#             cropped_obs = cv2.cvtColor(cropped_obs, cv2.COLOR_BGR2GRAY)
-#             # print(cropped_obs.shape)    # (30, 28)
-#             # cropped_obs = np.reshape(cropped_obs, (inx, iny))
-#             # print(cropped_obs.shape)    # (28, 30)
-#             # plt.imshow(cropped_obs)
-#             # plt.pause(1)
-#             # plt.clf()
-#             imgarray = np.ndarray.flatten(cropped_obs)
-#
-#             # obs = cv2.resize(obs, (inx, iny))
-#             # obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
-#             # obs = np.reshape(obs, (inx, iny))
-#             # imgarray = np.ndarray.flatten(obs)
-#
-#             nnOutput = net.activate(imgarray)
-#
-#             obs, rew, done, info = env.step(nnOutput)
-#
-#             cleared_lines = info['cleared_lines']
-#             score = info['score']
-#
-#             # current_piece = info['current_piece']
-#             # next_piece = info['next_piece']
-#
-#             # print('Current Piece:', current_piece)
-#             # print('Next Piece:', next_piece)
-#
-#             field = read_field(env, field_start_addr, num_rows, num_cols)
-#             print(field)
-#
-#             if game_over(field):
-#                 gameover = True
-#             else:
-#                 prev_field = [row[:] for row in field]
-#
-#             if gameover:
-#                 # Print final field
-#                 print('* ' * (len(field[0])))
-#                 for row in field:
-#                     print(' '.join(map(str, row)))
-#                 print('* ' * (len(field[0])))
-#
-#                 # Print previous field one frame before game over
-#                 print("Previous Field (when game over):")
-#                 print('* ' * (len(prev_field[0])))
-#                 for row in prev_field:
-#                     print(' '.join(map(str, row)))
-#                 print('* ' * (len(prev_field[0])))
-#
-#                 # If game over animation happens at last frame
-#                 if all(cell == 1 for cell in field[0]):
-#                     column_heights = calculate_column_heights(prev_field)
-#                     aggregate_height = sum(column_heights)
-#                     print("Previous Column Heights:", column_heights)
-#                     print("Cleared Lines:", cleared_lines)
-#                     bumpiness = calculate_bumpiness(column_heights)
-#                     print("Previous Bumpiness:", bumpiness)
-#                     column_holes = calculate_holes(prev_field)
-#                     print("Previous Column Holes:", column_holes)
-#                     print("Gameover:", game_over(field))
-#                     print("Time Survived:", frame)
-#                     print("Score:", score)
-#
-#                 else:
-#                     column_heights = calculate_column_heights(field)
-#                     aggregate_height = sum(column_heights)
-#                     print("Column Heights:", column_heights)
-#                     print("Cleared Lines:", cleared_lines)
-#                     bumpiness = calculate_bumpiness(column_heights)
-#                     print("Bumpiness:", bumpiness)
-#                     column_holes = calculate_holes(field)
-#                     print("Column Holes:", column_holes)
-#                     print("Gameover:", game_over(field))
-#                     print("Time Survived:", frame)
-#                     print("Score:", score)
-#
-#                 fitness_current = (-0.860 * aggregate_height) + (0.433 * cleared_lines) + \
-#                                   (-0.824 * column_holes) + (-0.343 * bumpiness) + (0.01 * frame) + \
-#                                   (0.01 * score)
-#
-#                 if fitness_current > current_max_fitness:
-#                     current_max_fitness = fitness_current
-#                 print(genome_id, fitness_current)
-#
-#             genome.fitness = fitness_current
-#
-#
-# config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-#                      neat.DefaultSpeciesSet, neat.DefaultStagnation,
-#                      'config-feedforward-tetris')
-#
-# p = neat.Population(config)
-#
-# p.add_reporter(neat.StdOutReporter(True))
-# stats = neat.StatisticsReporter()
-# p.add_reporter(stats)
-# p.add_reporter(neat.Checkpointer(10))
-#
-# winner = p.run(eval_genomes)
-#
-# with open('winner.pkl', 'wb') as output:
-#     pickle.dump(winner, output, 1)
-
-
-# ===================================== Parallelization: Run Multiple Instances ========================================
-
-# class Worker(object):
-#     def __init__(self, genome, config):
-#         self.genome = genome
-#         self.config = config
-#
-#     def work(self):
-#         self.env = retro.make('Tetris-Nes', state='StartLv0')
-#         obs = self.env.reset()
-#         action = self.env.action_space.sample()
-#         inx, iny, inc = self.env.observation_space.shape
-#         # inx = int(inx / 8)
-#         # iny = int(iny / 8)
-#
-#         net = neat.nn.recurrent.RecurrentNetwork.create(self.genome, self.config)
-#         fitness = 0
-#         frame = 0
-#         gameover = False
-#         prev_field = None
-#
-#         field_start_addr = 0x0400
-#         num_rows = 20
-#         num_cols = 10
-#
-#         while not gameover:
-#             # Uncomment to see NES Tetris running in emulator
-#             # self.env.render()
-#             frame += 1
-#             # obs = cv2.resize(obs, (inx, iny))
-#             # obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
-#             # obs = np.reshape(obs, (inx, iny))
-#             # imgarray = np.ndarray.flatten(obs)
-#             cropped_obs = obs[40:200, 88:168, :]
-#             cropped_obs = cv2.resize(cropped_obs, (10, 20))
-#             cropped_obs = cv2.cvtColor(cropped_obs, cv2.COLOR_BGR2GRAY)
-#             imgarray = np.ndarray.flatten(cropped_obs)
-#             # plt.imshow(cropped_obs)
-#             # plt.pause(1)
-#             # plt.clf()
-#
-#             nnOutput = net.activate(imgarray)
-#             obs, rew, done, info = self.env.step(nnOutput)
-#
-#             cleared_lines = info['cleared_lines']
-#             score = info['score']
-#             field = read_field(self.env, field_start_addr, num_rows, num_cols)
-#
-#             if game_over(field):
-#                 gameover = True
-#             else:
-#                 prev_field = [row[:] for row in field]
-#
-#             if gameover:
-#
-#                 # For previous frame
-#                 if all(cell == 1 for cell in field[0]):
-#                     # Print previous field one frame before game over
-#                     print("Previous Field:")
-#                     print('* ' * (len(prev_field[0])))
-#                     for row in prev_field:
-#                         print(' '.join(map(str, row)))
-#                     print('* ' * (len(prev_field[0])))
-#
-#                     column_heights = calculate_column_heights(prev_field)
-#                     aggregate_height = sum(column_heights)
-#                     print("Previous Column Heights:", column_heights)
-#                     print("Cleared Lines:", cleared_lines)
-#                     bumpiness = calculate_bumpiness(column_heights)
-#                     print("Previous Bumpiness:", bumpiness)
-#                     column_holes = calculate_holes(prev_field)
-#                     print("Previous Column Holes:", column_holes)
-#
-#                     print("Time Survived:", frame)
-#                     print("Score:", score)
-#                     print("Gameover:", game_over(field))
-#                 # For final frame
-#                 else:
-#                     # Print final field
-#                     print("Final Field:")
-#                     print('* ' * (len(field[0])))
-#                     for row in field:
-#                         print(' '.join(map(str, row)))
-#                     print('* ' * (len(field[0])))
-#
-#                     column_heights = calculate_column_heights(field)
-#                     aggregate_height = sum(column_heights)
-#                     print("Column Heights:", column_heights)
-#                     print("Cleared Lines:", cleared_lines)
-#                     bumpiness = calculate_bumpiness(column_heights)
-#                     print("Bumpiness:", bumpiness)
-#                     column_holes = calculate_holes(field)
-#                     print("Column Holes:", column_holes)
-#
-#                     print("Time Survived:", frame)
-#                     print("Score:", score)
-#                     print("Gameover:", game_over(field))
-#
-#                 fitness = (-0.1 * aggregate_height) + (15 * cleared_lines) + \
-#                           (-0.25 * column_holes) + (-0.25 * bumpiness) + (5 * score)
-#
-#         print(fitness)
-#         return fitness
-#
-#
-# def eval_genomes(genome, config):
-#     worky = Worker(genome, config)
-#     return worky.work()
-#
-#
-# config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-#                      neat.DefaultSpeciesSet, neat.DefaultStagnation,
-#                      'config-feedforward-tetris')
-# p = neat.Population(config)
-# p.add_reporter(neat.StdOutReporter(True))
-# stats = neat.StatisticsReporter()
-# p.add_reporter(stats)
-# p.add_reporter(neat.Checkpointer(10))
-#
-# if __name__ == '__main__':
-#     pe = neat.ParallelEvaluator(10, eval_genomes)
-#     winner = p.run(pe.evaluate)
-#     with open('winner.pkl', 'wb') as output:
-#         pickle.dump(winner, output, 1)
