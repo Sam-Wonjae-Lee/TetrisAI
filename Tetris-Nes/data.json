@@ -1,0 +1,28 @@
+{
+  "info": {
+    "cleared_lines": {
+      "address": 112,
+      "type": "<d2"
+    },
+    "death": {
+      "address": 88,
+      "type": "|u1"
+    },
+    "score": {
+      "address": 83,
+      "type": "<d3"
+    },
+    "time": {
+      "address": 177,
+      "type": "<d2"
+    },
+    "current_piece": {
+      "address": 98,
+      "type": "<d3"
+    },
+    "next_piece": {
+      "address": 191,
+      "type": "<d3"
+    }
+  }
+}

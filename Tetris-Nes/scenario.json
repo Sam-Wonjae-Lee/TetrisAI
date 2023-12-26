@@ -1,0 +1,10 @@
+{
+  "done": {
+    "variables": {
+      "death": {
+        "op": "equal",
+        "reference":20
+      }
+    }
+  }
+}
